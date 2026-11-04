@@ -179,6 +179,23 @@ void Graphics3D::setAmbientColor(float r, float g, float b)
 	ambientColor = Vector3(r, g, b);
 }
 
+void Graphics3D::setFog(FogMode mode, const Vector3 &color, float density, float start, float end)
+{
+	if (mode < FOG_NONE || mode > FOG_EXPONENTIAL)
+		throw love::Exception("Invalid 3D fog mode.");
+	if (!std::isfinite(color.x) || !std::isfinite(color.y) || !std::isfinite(color.z)
+		|| !std::isfinite(density) || !std::isfinite(start) || !std::isfinite(end))
+		throw love::Exception("3D fog parameters must be finite.");
+	if (density < 0.0f || start < 0.0f || end <= start)
+		throw love::Exception("3D fog density and start must be non-negative, and end must be greater than start.");
+
+	fogMode = mode;
+	fogColor = color;
+	fogDensity = density;
+	fogStart = start;
+	fogEnd = end;
+}
+
 void Graphics3D::setWinding(love::graphics::Winding winding_)
 {
 	winding = winding_;
@@ -262,10 +279,14 @@ uniform vec4 love3d_MaterialColor;   // rgb = diffuse tint, a = opacity
 uniform vec4 love3d_MaterialSpec;    // x = specular strength, y = shininess, z = unlit flag, w = has normal map
 uniform vec4 love3d_MaterialEmissive;
 uniform vec2 love3d_MaterialAlpha;   // x = cutoff, y = alpha-mask flag
+uniform vec4 love3d_MaterialPBR;     // x = metallic, y = roughness, z = PBR enabled, w = metallic-roughness map enabled.
+uniform vec2 love3d_OcclusionParams; // x = map enabled, y = strength.
 
 uniform vec3 love3d_CameraPos;
 uniform vec3 love3d_AmbientLight;
 uniform int love3d_LightCount;
+uniform vec4 love3d_FogParams; // x = mode, y = density, z = linear start, w = linear end.
+uniform vec3 love3d_FogColor;
 
 uniform vec4 love3d_LightPos[LOVE3D_MAX_LIGHTS];   // xyz = position, w = intensity
 uniform vec4 love3d_LightDir[LOVE3D_MAX_LIGHTS];   // xyz = direction light travels, w = range
@@ -276,6 +297,24 @@ uniform Image love3d_DiffuseTex;
 uniform Image love3d_NormalTex;
 uniform Image love3d_SpecularTex;
 uniform Image love3d_EmissiveTex;
+uniform Image love3d_MetallicRoughnessTex;
+uniform Image love3d_OcclusionTex;
+
+vec3 love3d_ApplyFog(vec3 color)
+{
+	if (love3d_FogParams.x < 0.5)
+		return color;
+
+	float distanceToCamera = length(love3d_CameraPos - love3d_VaryWorldPos);
+	float visibility;
+	if (love3d_FogParams.x < 1.5)
+		visibility = clamp((love3d_FogParams.w - distanceToCamera)
+			/ max(love3d_FogParams.w - love3d_FogParams.z, 1e-5), 0.0, 1.0);
+	else
+		visibility = exp(-love3d_FogParams.y * distanceToCamera);
+
+	return mix(gammaToLinear(love3d_FogColor), color, visibility);
+}
 
 vec4 love3d_CustomFragment(vec4 color)
 {
@@ -297,7 +336,8 @@ void pixelmain()
 	{
 		// Unlit: plain texel * tint (plus emissive).
 		vec3 unlit = albedo + gammaToLinear(love3d_MaterialEmissive.rgb);
-		love3d_OutColor = love3d_CustomFragment(vec4(unlit, texel.a * love3d_MaterialColor.a * love3d_VaryColor.a));
+		love3d_OutColor = love3d_CustomFragment(vec4(love3d_ApplyFog(unlit),
+			texel.a * love3d_MaterialColor.a * love3d_VaryColor.a));
 		return;
 	}
 
@@ -323,6 +363,24 @@ void pixelmain()
 
 	vec3 totalDiffuse = vec3(0.0);
 	vec3 totalSpecular = vec3(0.0);
+	vec3 totalPBR = vec3(0.0);
+
+	vec4 metallicRoughnessSample = Texel(love3d_MetallicRoughnessTex, love3d_VaryTexCoord);
+	float metallic = love3d_MaterialPBR.x;
+	float roughness = love3d_MaterialPBR.y;
+	if (love3d_MaterialPBR.w > 0.5)
+	{
+		metallic *= metallicRoughnessSample.b;
+		roughness *= metallicRoughnessSample.g;
+	}
+	roughness = clamp(roughness, 0.04, 1.0);
+	float occlusion = 1.0;
+	if (love3d_OcclusionParams.x > 0.5)
+		occlusion = mix(1.0, Texel(love3d_OcclusionTex, love3d_VaryTexCoord).r,
+			love3d_OcclusionParams.y);
+	vec3 viewDir = normalize(love3d_CameraPos - love3d_VaryWorldPos);
+	float nDotV = max(dot(normal, viewDir), 1e-4);
+	vec3 f0 = mix(vec3(0.04), albedo, metallic);
 
 	for (int i = 0; i < love3d_LightCount && i < LOVE3D_MAX_LIGHTS; i++)
 	{
@@ -379,6 +437,23 @@ void pixelmain()
 				float specAngle = max(dot(normal, halfDir), 0.0);
 				totalSpecular += lightColor * (attenuation * pow(specAngle, shininess) * specStrength);
 			}
+
+			vec3 halfDir = normalize(toLight + viewDir);
+			float nDotH = max(dot(normal, halfDir), 0.0);
+			float vDotH = max(dot(viewDir, halfDir), 0.0);
+			float alpha = roughness * roughness;
+			float alpha2 = alpha * alpha;
+			float denom = nDotH * nDotH * (alpha2 - 1.0) + 1.0;
+			float distribution = alpha2 / max(3.14159265 * denom * denom, 1e-5);
+			float k = (roughness + 1.0) * (roughness + 1.0) / 8.0;
+			float geometryV = nDotV / (nDotV * (1.0 - k) + k);
+			float geometryL = nl / (nl * (1.0 - k) + k);
+			vec3 fresnel = f0 + (1.0 - f0) * pow(1.0 - vDotH, 5.0);
+			vec3 specular = distribution * geometryV * geometryL * fresnel
+				/ max(4.0 * nDotV * nl, 1e-4);
+			vec3 diffuseWeight = (1.0 - fresnel) * (1.0 - metallic);
+			totalPBR += (diffuseWeight * albedo / 3.14159265 + specular)
+				* lightColor * (attenuation * nl);
 		}
 	}
 
@@ -386,14 +461,21 @@ void pixelmain()
 	// no-op multiplier.
 	vec3 specMap = Texel(love3d_SpecularTex, love3d_VaryTexCoord).rgb;
 
-	vec3 color = (love3d_AmbientLight + totalDiffuse) * albedo;
-	color += totalSpecular * specMap;
+	vec3 color;
+	if (love3d_MaterialPBR.z > 0.5)
+		color = love3d_AmbientLight * albedo * (1.0 - metallic) * occlusion + totalPBR;
+	else
+	{
+		color = (love3d_AmbientLight + totalDiffuse) * albedo;
+		color += totalSpecular * specMap;
+	}
 
 	// Emissive: material color * emissive texture (default texture is
 	// white).
 	color += gammaToLinear(love3d_MaterialEmissive.rgb) * Texel(love3d_EmissiveTex, love3d_VaryTexCoord).rgb;
 
-	love3d_OutColor = love3d_CustomFragment(vec4(color, texel.a * love3d_MaterialColor.a * love3d_VaryColor.a));
+	love3d_OutColor = love3d_CustomFragment(vec4(love3d_ApplyFog(color),
+		texel.a * love3d_MaterialColor.a * love3d_VaryColor.a));
 }
 )";
 
@@ -509,6 +591,12 @@ void Graphics3D::cacheUniformInfos(love::graphics::Shader *shader, UniformInfos 
 	target.normalTexture = getUniform("love3d_NormalTex");
 	target.specularTexture = getUniform("love3d_SpecularTex");
 	target.emissiveTexture = getUniform("love3d_EmissiveTex");
+	target.fogParams = getUniform("love3d_FogParams");
+	target.fogColor = getUniform("love3d_FogColor");
+	target.materialPBR = getUniform("love3d_MaterialPBR");
+	target.occlusionParams = getUniform("love3d_OcclusionParams");
+	target.metallicRoughnessTexture = getUniform("love3d_MetallicRoughnessTex");
+	target.occlusionTexture = getUniform("love3d_OcclusionTex");
 }
 
 bool Graphics3D::begin3D()
@@ -632,6 +720,20 @@ void Graphics3D::updateSceneUniforms(love::graphics::Shader *shader, const Unifo
 		float ambient[3] = { ambientColor.x, ambientColor.y, ambientColor.z };
 		memcpy(activeUniforms.ambientLight->data, ambient, sizeof(float) * 3);
 		shader->updateUniform(activeUniforms.ambientLight, 1);
+	}
+
+	if (isUniformUsable(activeUniforms.fogParams))
+	{
+		float fogParams[4] = { (float) fogMode, fogDensity, fogStart, fogEnd };
+		memcpy(activeUniforms.fogParams->data, fogParams, sizeof(fogParams));
+		shader->updateUniform(activeUniforms.fogParams, 1);
+	}
+
+	if (isUniformUsable(activeUniforms.fogColor))
+	{
+		float color[3] = { fogColor.x, fogColor.y, fogColor.z };
+		memcpy(activeUniforms.fogColor->data, color, sizeof(color));
+		shader->updateUniform(activeUniforms.fogColor, 1);
 	}
 
 	// Lights.
@@ -1283,6 +1385,27 @@ void Graphics3D::drawObject(Mesh3D *mesh, const Matrix4 &modelMatrix, Material3D
 		shader->updateUniform(activeUniforms.materialAlpha, 1);
 	}
 
+	if (isUniformUsable(activeUniforms.materialPBR))
+	{
+		float data[4] = {
+			material->getMetallic(), material->getRoughness(),
+			material->isPBR() ? 1.0f : 0.0f,
+			material->getMetallicRoughnessTexture() != nullptr ? 1.0f : 0.0f
+		};
+		memcpy(activeUniforms.materialPBR->data, data, sizeof(data));
+		shader->updateUniform(activeUniforms.materialPBR, 1);
+	}
+
+	if (isUniformUsable(activeUniforms.occlusionParams))
+	{
+		float data[2] = {
+			material->getOcclusionTexture() != nullptr ? 1.0f : 0.0f,
+			material->getOcclusionStrength()
+		};
+		memcpy(activeUniforms.occlusionParams->data, data, sizeof(data));
+		shader->updateUniform(activeUniforms.occlusionParams, 1);
+	}
+
 	// Material textures: only bind ones that are actually set; the Shader
 	// constructor default-binds white textures for the rest.
 	love::graphics::Texture *diffuseTex = material->getDiffuseTexture();
@@ -1309,6 +1432,19 @@ void Graphics3D::drawObject(Mesh3D *mesh, const Matrix4 &modelMatrix, Material3D
 	{
 		love::graphics::Texture *textures[1] = { material->getEmissiveTexture() };
 		shader->sendTextures(activeUniforms.emissiveTexture, textures, 1);
+	}
+
+	if (isUniformUsable(activeUniforms.metallicRoughnessTexture)
+		&& material->getMetallicRoughnessTexture() != nullptr)
+	{
+		love::graphics::Texture *textures[1] = { material->getMetallicRoughnessTexture() };
+		shader->sendTextures(activeUniforms.metallicRoughnessTexture, textures, 1);
+	}
+
+	if (isUniformUsable(activeUniforms.occlusionTexture) && material->getOcclusionTexture() != nullptr)
+	{
+		love::graphics::Texture *textures[1] = { material->getOcclusionTexture() };
+		shader->sendTextures(activeUniforms.occlusionTexture, textures, 1);
 	}
 
 	if (instances != nullptr)
