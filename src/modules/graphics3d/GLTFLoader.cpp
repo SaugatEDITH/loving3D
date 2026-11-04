@@ -554,6 +554,13 @@ public:
 			result->setColor(toSRGB(factor.at(0).num(1)), toSRGB(factor.at(1).num(1)),
 				toSRGB(factor.at(2).num(1)), (float) factor.at(3).num(1));
 			bindTexture(pbr.get("baseColorTexture"), result, 0);
+			result->setMetallic((float) pbr.get("metallicFactor").num(1.0));
+			result->setRoughness(std::max(0.04f, (float) pbr.get("roughnessFactor").num(1.0)));
+			result->setPBR(true);
+			bindTexture(pbr.get("metallicRoughnessTexture"), result, 4);
+			const Json &occlusion = m.get("occlusionTexture");
+			bindTexture(occlusion, result, 5);
+			result->setOcclusionStrength((float) occlusion.get("strength").num(1.0));
 			bindTexture(m.get("normalTexture"), result, 1);
 			bindTexture(m.get("emissiveTexture"), result, 3);
 			const Json &emissive = m.get("emissiveFactor");
@@ -585,7 +592,7 @@ public:
 		if (index < 0 || (size_t) index >= textureSources.size())
 			throw love::Exception("glTF material references an invalid texture.");
 		std::pair<int, int> source = textureSources[index];
-		bool linear = slot == 1;
+		bool linear = slot == 1 || slot == 4 || slot == 5;
 		std::tuple<int, int, bool> key(source.first, source.second, linear);
 		auto it = textureCache.find(key);
 		if (it == textureCache.end())
@@ -611,6 +618,8 @@ public:
 		if (slot == 0) material->setDiffuseTexture(texture);
 		else if (slot == 1) material->setNormalTexture(texture);
 		else if (slot == 3) material->setEmissiveTexture(texture);
+		else if (slot == 4) material->setMetallicRoughnessTexture(texture);
+		else if (slot == 5) material->setOcclusionTexture(texture);
 	}
 };
 
