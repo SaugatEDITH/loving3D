@@ -40,6 +40,15 @@
 *.dylib
 *.dmg*
 demos
+!demos/
+!demos/graphics3d-canvas/
+!demos/graphics3d-canvas/**
+!demos/graphics3d-resize/
+!demos/graphics3d-resize/**
+!demos/rubiks3d/
+!demos/rubiks3d/**
+!demos/graphics3d-shooter/
+!demos/graphics3d-shooter/**
 *.orig
 .*.swp
 /autom4te.cache/

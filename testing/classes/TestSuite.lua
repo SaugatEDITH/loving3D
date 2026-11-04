@@ -34,6 +34,7 @@ TestSuite = {
       filesystem = {},
       font = {},
       graphics = {},
+      graphics3d = {},
       image = {},
       joystick = {},
       love = {},

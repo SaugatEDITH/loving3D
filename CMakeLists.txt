@@ -709,6 +709,46 @@ else()
 endif()
 
 #
+# love.graphics3d
+#
+
+add_library(love_graphics3d STATIC
+	src/modules/graphics3d/Camera3D.cpp
+	src/modules/graphics3d/Camera3D.h
+	src/modules/graphics3d/Graphics3D.cpp
+	src/modules/graphics3d/Graphics3D.h
+	src/modules/graphics3d/GLTFLoader.cpp
+	src/modules/graphics3d/GLTFLoader.h
+	src/modules/graphics3d/Light3D.cpp
+	src/modules/graphics3d/Light3D.h
+	src/modules/graphics3d/Material3D.cpp
+	src/modules/graphics3d/Material3D.h
+	src/modules/graphics3d/Mesh3D.cpp
+	src/modules/graphics3d/Mesh3D.h
+	src/modules/graphics3d/Model3D.cpp
+	src/modules/graphics3d/Model3D.h
+	src/modules/graphics3d/Node3D.cpp
+	src/modules/graphics3d/Node3D.h
+	src/modules/graphics3d/Matrix4.cpp
+	src/modules/graphics3d/Matrix4.h
+	src/modules/graphics3d/OBJLoader.cpp
+	src/modules/graphics3d/OBJLoader.h
+	src/modules/graphics3d/Primitives.cpp
+	src/modules/graphics3d/Primitives.h
+	src/modules/graphics3d/Quaternion.h
+	src/modules/graphics3d/Transform3D.h
+	src/modules/graphics3d/Vector3.h
+	src/modules/graphics3d/wrap_Graphics3D.cpp
+	src/modules/graphics3d/wrap_Graphics3D.h
+)
+target_link_libraries(love_graphics3d PUBLIC
+	love_graphics
+	love_image
+	love_filesystem
+	lovedep::Lua
+)
+
+#
 # love.image
 #
 
@@ -1929,6 +1969,7 @@ set(LIBLOVE_DEPENDENCIES
 	love_filesystem
 	love_font
 	love_graphics
+	love_graphics3d
 	love_image
 	love_joystick
 	love_keyboard

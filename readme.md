@@ -1,116 +1,128 @@
-LÖVE is an *awesome* framework you can use to make 2D games in Lua. It's free, open-source, and works on Windows, macOS, Linux, Android, and iOS.
+# LOVING3D
 
-[![Build Status: Github CI](https://github.com/love2d/love/workflows/continuous-integration/badge.svg)](https://github.com/love2d/love/actions?query=workflow%3Acontinuous-integration)
+**LOVING3D is a LÖVE-based game engine distribution that adds native 3D rendering to LÖVE's Lua game framework.** It retains the familiar `love.*` programming model and existing 2D APIs, while adding the `love.graphics3d` module for 3D cameras, meshes, models, materials, lights, and rendering.
 
-Documentation
--------------
+This repository is a modified LÖVE source tree, not an add-on package that can be dropped into an unmodified LÖVE installation. The 3D module is an evolving implementation; review the documented constraints and test the exact platforms and workloads you plan to ship.
 
-We use our [wiki][wiki] for documentation.
-If you need further help, feel free to ask on our [forums][forums], our [Discord server][discord], or our [subreddit][subreddit].
+## Documentation
 
-Repository
-----------
+- **Using LÖVE's existing 2D APIs:** [Official LÖVE wiki and API reference](https://love2d.org/wiki/Main_Page). LOVING3D does not replace those APIs; 2D drawing, input, audio, filesystem, and other familiar LÖVE APIs remain part of the project.
+- **Using the added 3D API:** [LOVING3D 3D graphics guide](docs/graphics3d.md).
+- **Project documentation index:** [docs/README.md](docs/README.md).
+- **License and third-party notices:** [docs/licensing.md](docs/licensing.md) and [license.txt](license.txt).
 
-We use the 'main' branch for development of the next major release, and therefore it should not be considered stable.
+## Quick start
 
-There are also branches for currently released major versions, which may have fixes and changes meant for upcoming patch releases within that major version.
+The 3D module is exposed as `love.graphics3d`. A window using 3D rendering needs a depth buffer:
 
-We tag all our releases (since we started using mercurial and git), and have binary downloads available for them.
+```lua
+-- conf.lua
+function love.conf(t)
+	t.window.title = "My LOVING3D game"
+	t.window.width = 1280
+	t.window.height = 720
+	t.window.depth = true
+end
+```
 
-Experimental changes are sometimes developed in a separate [love-experiments][love-experiments] repository.
+```lua
+-- main.lua
+local g3d = love.graphics3d
+local camera
+local cube
 
-Builds
-------
+function love.load()
+	camera = g3d.newCamera()
+	camera:setPosition(4, 3, 6)
+	camera:setAspect(love.graphics.getWidth() / love.graphics.getHeight())
+	camera:setFOV(55)
+	camera:lookAt(0, 0, 0)
+	g3d.setCamera(camera)
 
-Files for releases are in the [releases][releases] section on GitHub. [The site][site] has links to files and additional platform content for the latest release.
+	g3d.setAmbientColor(0.12, 0.12, 0.16)
+	local sun = g3d.newLight("directional")
+	sun:setDirection(-0.5, -1, -0.7)
+	sun:setColor(1, 0.92, 0.78)
+	sun:setIntensity(2)
+	g3d.addLight(sun)
 
-There are also unstable/nightly builds:
+	local surface = g3d.newMaterial()
+	surface:setColor(0.2, 0.65, 0.95, 1)
+	surface:setSpecularParams(0.35, 40)
 
-- Builds for some platforms are automatically created after each commit and are available through GitHub's CI interfaces.
-- For ubuntu linux they are in [ppa:bartbes/love-unstable][unstableppa]
-- For arch linux there's [love-git][aur] in the AUR.
+	cube = g3d.newCube()
+	cube:setMaterial(surface)
+end
 
-Test Suite
-----------
+function love.draw()
+	love.graphics.clear(0.035, 0.045, 0.07, 1)
 
-The test suite in `testing/` covers all the LÖVE APIs, and tests them the same way developers use them. You can view current test coverage from any [action][workflows].  
-You can run the suite locally like you would run a normal LÖVE project, e.g.:  
-`love testing`
+	g3d.begin3d()
+	g3d.draw(cube, 0, 0, 0, 0, 25, 0, 1.5, 1.5, 1.5)
+	g3d.end3d()
 
-See the [readme][testsuite] in the testing folder for more info.  
+	-- Existing LÖVE 2D drawing can follow the 3D pass.
+	love.graphics.setColor(1, 1, 1, 1)
+	love.graphics.print("LOVING3D", 16, 16)
+end
 
-Contributing
-------------
+function love.resize(width, height)
+	if camera and height > 0 then
+		camera:setAspect(width / height)
+	end
+end
+```
 
-The best places to contribute are through the issue tracker and the official Discord server.
+See the [3D guide](docs/graphics3d.md) for the full API, model import, render-pass behavior, and current limitations.
 
-For code contributions, pull requests and patches are welcome. Be sure to read the [source code style guide][codestyle].
-Changes and new features typically get discussed in the issue tracker or on Discord or the forums before a pull request is made.
+## Demos
 
-> [!NOTE] 
-> Pull requests, bug reports, and other contributions made with LLM / generative AI technology will not be accepted.
+- [`demos/graphics3d-cube`](demos/graphics3d-cube): minimal 3D camera, lighting, mesh, and 2D overlay example.
+- [`demos/graphics3d-shooter`](demos/graphics3d-shooter): interactive procedural space shooter and 3D load demo, including OBJ/MTL ship import.
+- [`demos/rubiks3d`](demos/rubiks3d): 3D shapes and rendering example.
 
-Compilation
------------
+Run a demo with the built executable, for example:
 
-### Windows
-Follow the instructions at the [megasource][megasource] repository page.
+```sh
+./build/love demos/graphics3d-shooter
+```
 
-### *nix
-Because in-tree builds are not allowed, the Makefiles needs to be generated in a separate build directory. In this example, folder named `build` is used:
+## Building
 
-	$ cmake -B build -S. --install-prefix $PWD/prefix # this will create the directory `build/`.
-	$ cmake --build build --target install -j$(nproc) # this will build with all cores and put the files in `prefix/`.
+Build requirements depend on the target platform and the dependencies configured for this LÖVE source tree. With the required CMake toolchain and development libraries installed:
 
-> [!NOTE]  
-> CMake 3.15 and earlier doesn't support `--install-prefix`. In that case, use `-DCMAKE_INSTALL_PREFIX=` instead.
+```sh
+cmake -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo
+cmake --build build -j"$(nproc)"
+```
 
-### macOS
-Download or clone [this repository][dependencies-apple] and copy, move, or symlink the `macOS/Frameworks` subfolder into love's `platform/xcode/macosx` folder and the `shared` subfolder into love's `platform/xcode` folder.
+On Linux, this repository also includes a Docker build environment:
 
-Then use the Xcode project found at `platform/xcode/love.xcodeproj` to build the `love-macosx` target.
+```sh
+docker build -t loving3d-build -f docker/Dockerfile .
+./scripts/docker-demo.sh build
+```
 
-### iOS
-Building for iOS requires macOS and Xcode.
+The Docker script bind-mounts the working tree and writes build output to `build/`. Display and GPU availability inside containers depends on the host setup. The included container configuration is a build/test convenience, not a platform support guarantee.
 
-Download the `love-apple-dependencies` zip file corresponding to the LÖVE version being used from the [Releases page][dependencies-ios],
-unzip it, and place the `iOS/libraries` subfolder into love's `platform/xcode/ios` folder and the `shared` subfolder into love's `platform/xcode` folder.
+## 3D implementation overview
 
-Or, download or clone [this repository][dependencies-apple] and copy, move, or symlink the `iOS/libraries` subfolder into love's `platform/xcode/ios` folder and the `shared` subfolder into love's `platform/xcode` folder.
+- Right-handed world coordinates, +Y up, camera forward along -Z by default.
+- Perspective and orthographic cameras.
+- Indexed meshes, built-in procedural primitives, and a Wavefront OBJ/MTL text importer.
+- Per-mesh/model materials with diffuse, normal, specular, and emissive texture slots.
+- Blinn-Phong lighting with directional, point, and spot lights (up to eight active lights).
+- Depth-tested rendering, opaque-first submission, and back-to-front sorting for transparent draws.
+- `love.graphics` remains available for 2D rendering and UI.
 
-Then use the Xcode project found at `platform/xcode/love.xcodeproj` to build the `love-ios` target.
+The current renderer is a useful foundation, not a claim of feature parity with mature 3D engines. It does not currently document a full scene graph, skeletal animation, a physics integration, glTF import, shadow mapping, or a render graph. Consult [known constraints](docs/graphics3d.md#current-scope-and-limitations) before choosing it for a production project.
 
-See `readme-iOS.rtf` for more information.
+## Contributing and support
 
-### Android
-Visit the [Android build repository][android-repository] for build instructions.
+Please open an issue with a minimal reproduction, platform, build configuration, and relevant logs when reporting a problem. Keep changes scoped, preserve upstream LÖVE notices, and include tests or a reproducible runtime check for behavior changes.
 
-Dependencies
-------------
+## Licensing
 
-- SDL3
-- OpenGL 3.3+ / OpenGL ES 3.0+ / Vulkan / Metal
-- OpenAL
-- Lua / LuaJIT / LLVM-lua
-- FreeType
-- harfbuzz
-- ModPlug
-- Vorbisfile
-- Theora
+LOVING3D modifies and redistributes LÖVE source code. Lua's license permits broad use of Lua, but it does not replace the licenses or copyright notices for LÖVE and the other components in this source tree. This repository contains multiple third-party components and notices; review [license.txt](license.txt), source-file notices, and [docs/licensing.md](docs/licensing.md) when redistributing or incorporating the project.
 
-[site]: https://love2d.org
-[wiki]: https://love2d.org/wiki
-[forums]: https://love2d.org/forums
-[discord]: https://discord.gg/rhUets9
-[subreddit]: https://www.reddit.com/r/love2d
-[dependencies-apple]: https://github.com/love2d/love-apple-dependencies
-[dependencies-ios]: https://github.com/love2d/love/releases
-[megasource]: https://github.com/love2d/megasource
-[unstableppa]: https://launchpad.net/~bartbes/+archive/love-unstable
-[aur]: https://aur.archlinux.org/packages/love-git
-[love-experiments]: https://github.com/slime73/love-experiments
-[codestyle]: https://love2d.org/wiki/Code_Style
-[android-repository]: https://github.com/love2d/love-android
-[releases]: https://github.com/love2d/love/releases
-[testsuite]: https://github.com/love2d/love/tree/main/testing
-[workflows]: https://github.com/love2d/love/actions/workflows/main.yml?query=branch%3Amain
+LOVING3D is an independent project and is not an official LÖVE release. LÖVE and Lua retain their respective names, copyrights, and licensing terms.

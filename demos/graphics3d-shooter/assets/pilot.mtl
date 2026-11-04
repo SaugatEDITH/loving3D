@@ -1,0 +1,28 @@
+# Navy ceramic armor, machined trim, a luminous canopy and twin plasma drives.
+newmtl hull
+Kd 0.62 0.76 0.86
+Ks 0.72 0.80 0.90
+Ns 72
+map_Kd pilot_diffuse.png
+
+newmtl trim
+Kd 0.16 0.25 0.36
+Ks 0.58 0.68 0.78
+Ns 44
+
+newmtl accent
+Kd 1.00 0.34 0.08
+Ks 0.72 0.47 0.24
+Ns 56
+
+newmtl canopy
+Kd 0.16 0.62 0.86
+Ks 0.92 0.96 1.00
+Ns 96
+Ke 0.03 0.13 0.20
+
+newmtl engine
+Kd 0.12 0.48 0.95
+Ks 0.75 0.88 1.00
+Ns 64
+Ke 0.04 0.28 0.90

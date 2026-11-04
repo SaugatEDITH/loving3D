@@ -126,6 +126,9 @@ extern "C"
 #if defined(LOVE_ENABLE_GRAPHICS)
 	extern int luaopen_love_graphics(lua_State*);
 #endif
+#if defined(LOVE_ENABLE_GRAPHICS3D)
+	extern int luaopen_love_graphics3d(lua_State*);
+#endif
 #if defined(LOVE_ENABLE_IMAGE)
 	extern int luaopen_love_image(lua_State*);
 #endif
@@ -197,6 +200,9 @@ static const luaL_Reg modules[] = {
 #endif
 #if defined(LOVE_ENABLE_GRAPHICS)
 	{ "love.graphics", luaopen_love_graphics },
+#endif
+#if defined(LOVE_ENABLE_GRAPHICS3D)
+	{ "love.graphics3d", luaopen_love_graphics3d },
 #endif
 #if defined(LOVE_ENABLE_IMAGE)
 	{ "love.image", luaopen_love_image },

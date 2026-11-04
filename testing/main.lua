@@ -15,6 +15,7 @@ if love.event ~= nil then require('tests.event') end
 if love.filesystem ~= nil then require('tests.filesystem') end
 if love.font ~= nil then require('tests.font') end
 if love.graphics ~= nil then require('tests.graphics') end
+if love.graphics3d ~= nil then require('tests.graphics3d') end
 if love.image ~= nil then require('tests.image') end
 if love.joystick ~= nil then require('tests.joystick') end
 if love.keyboard ~= nil then require('tests.keyboard') end
@@ -79,7 +80,7 @@ love.load = function(args)
   local method = ''
   local cmderr = 'Invalid flag used'
   local modules = {
-    'audio', 'data', 'event', 'filesystem', 'font', 'graphics', 'image',
+    'audio', 'data', 'event', 'filesystem', 'font', 'graphics', 'graphics3d', 'image',
     'joystick', 'keyboard', 'love', 'math', 'mouse', 'physics', 'sensor',
     'sound', 'system', 'thread', 'timer', 'touch', 'video', 'window'
   }

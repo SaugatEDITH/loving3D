@@ -211,6 +211,7 @@ function love.init()
 			touch = true,
 			image = true,
 			graphics = true,
+			graphics3d = true,
 			audio = true,
 			math = true,
 			physics = true,
@@ -363,6 +364,7 @@ function love.init()
 		"font",
 		"window",
 		"graphics",
+		"graphics3d",
 		"math",
 		"physics",
 	} do
