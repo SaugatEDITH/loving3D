@@ -13,6 +13,7 @@
 /extra/reshax/resources.h
 /extra/reshax/resources.cpp
 *.obj
+!/testing/assets/gltf/OBJPath/PathImport.obj
 *.o
 *.dirstamp
 *.m4
