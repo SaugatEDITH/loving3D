@@ -44,13 +44,15 @@ The main window must have a depth buffer. Canvas rendering may attach a temporar
 | GPU instancing and repeated opaque draw batching | Implemented | Requires backend instancing support; transparent meshes remain individually sorted. |
 | Distance-based mesh LOD | Implemented | Selects a registered replacement mesh using camera distance to the object's bounds center. |
 | Material fragment hook and shader reload | Implemented | The hook wraps the standard Blinn-Phong shader; full arbitrary render pipelines are not exposed. |
-| Fog, cubemap/procedural skybox, shadow maps | Planned | No fog or skybox scene API, shadow render pass, or shadow filtering is present. |
-| Metallic-roughness PBR, occlusion mapping, image-based lighting | Planned | glTF PBR factors and maps are not shaded; materials use Blinn-Phong. |
-| Post-processing, HDR, bloom, SSAO, temporal AA | Planned | No post-processing graph or HDR pipeline is present. |
+| Linear and exponential fog | Implemented | Configured through `setFog`; fog is applied to lit and unlit materials. |
+| Cubemap and procedural skybox | Partial | Not implemented yet; no skybox API or background pass is present. |
+| Directional shadow maps, PCF, and bias controls | Partial | Not implemented yet; no shadow map render or sample pass is present. |
+| Metallic-roughness PBR, occlusion mapping, image-based lighting | Partial | Direct-light GGX metallic-roughness shading and glTF map bindings are implemented; image-based lighting is not. |
+| Post-processing, HDR, bloom, SSAO, temporal AA | Partial | Not implemented yet; no post-processing graph or HDR pipeline is present. |
 | glTF 2.0 / GLB static meshes and core material textures | Partial | `newModelFromFile` imports triangle meshes, node transforms, buffers, base color/normal/emissive textures, alpha modes, and samplers. Sparse accessors and extensions are rejected; PBR, animation, and non-triangle modes are not implemented. |
-| Skeletal animation, animation blending/state machines | Planned | Skinning, clips, blending, and animation state machines are not implemented. |
-| ECS, 3D physics/controllers, scene serialization | Planned | A transform scene graph is provided, but there is no ECS, physics simulation, character controller, or scene format. |
-| Async asset streaming | Planned | Asset loading is synchronous. |
+| Skeletal animation, animation blending/state machines | Partial | Not implemented yet; skinning, clips, blending, and animation state machines are absent. |
+| ECS, 3D physics/controllers, scene serialization | Partial | A transform scene graph is provided, but there is no ECS, physics simulation, character controller, or scene format. |
+| Async asset streaming | Partial | Not implemented yet; asset loading is synchronous. |
 
 ## Coordinate system and units
 
@@ -120,6 +122,7 @@ end
 | `setCamera(camera)` / `getCamera()` | Set or retrieve the active scene camera. |
 | `addLight(light)` / `removeLight(light)` / `clearLights()` | Manage active scene lights. |
 | `setAmbientColor(r, g, b)` / `getAmbientColor()` | Set/retrieve scene ambient color. |
+| `setFog(mode, r, g, b, density, start, end)` | Configure `none`, `linear`, or `exp` fog; color defaults to `(0.5, 0.6, 0.7)`, density to `0.01`, and linear distances to `10` and `100`. |
 | `begin3d()` / `end3d()` | Begin the queued 3D pass and submit it. |
 | `draw(meshOrModel, x, y, z, [rx, ry, rz], [sx, sy, sz])` | Queue a mesh or model with optional Euler rotation and scale. |
 | `draw(node)` | Queue a node's attached mesh/model and all descendants using world transforms. |
@@ -200,6 +203,8 @@ Materials expose:
 - `setEmissiveTexture(texture)` / `getEmissiveTexture()`
 - `setSpecularParams(strength, shininess)` / `getSpecularParams()`
 - `setEmissiveColor(r, g, b)` / `getEmissiveColor()`
+- `setPBR(boolean)`, `setMetallic(value)` / `getMetallic()`, and `setRoughness(value)` / `getRoughness()` — opt into the metallic-roughness direct-light model. Metallic must be between 0 and 1; roughness must be between 0.04 and 1.
+- `setMetallicRoughnessTexture(texture)` and `setOcclusionTexture(texture)` — bind linear-data maps; glTF uses the standard blue metallic/green roughness channels and red occlusion channel. `setOcclusionStrength(value)` / `getOcclusionStrength()` sets the occlusion mix from 0 to 1.
 - `setUnlit(boolean)` / `isUnlit()`
 - `setTransparent(boolean)` / `isTransparent()`
 - `setCullMode(mode)` / `getCullMode()` — LOVE cull mode, commonly `back`.
@@ -275,7 +280,7 @@ OBJ texture coordinates use a bottom-left origin, while LOVE image sampling uses
 
 ### Color space
 
-Material base/emissive colors and light colors are passed as normalized display-space (sRGB-like) values and converted to linear light by the standard shader. Scene ambient color is consumed directly as linear light. Vertex colors and sampled textures are multiplied as sampled; the 3D shader does not explicitly decode their RGB values. Alpha is not gamma-converted. The shader relies on LOVE's gamma-correct framebuffer behavior for output encoding; use linear data for normal/specular maps and keep texture formats consistent with LOVE's color-space handling.
+Material base/emissive colors, fog colors, and light colors are passed as normalized display-space (sRGB-like) values and converted to linear light by the standard shader. Scene ambient color is consumed directly as linear light. glTF base-color/emissive factors are converted from glTF's linear values before the shader conversion; metallic-roughness and occlusion textures are loaded as linear data. Other vertex colors and sampled textures are multiplied as sampled; the 3D shader does not explicitly decode their RGB values. Alpha is not gamma-converted. The shader relies on LOVE's gamma-correct framebuffer behavior for output encoding.
 
 This is a focused OBJ/MTL importer, not a general-purpose DCC interchange pipeline. Validate asset winding, UVs, normals, material assignments, and scale in the target build.
 
@@ -283,13 +288,26 @@ This is a focused OBJ/MTL importer, not a general-purpose DCC interchange pipeli
 
 `g3d.newModelFromFile(path)` dispatches by `.obj`, `.gltf`, or `.glb` extension. File reads and external resources use LOVE's virtual filesystem, so paths are relative to the game's mounted filesystem. The loader imports triangle primitives, indexed or non-indexed geometry, positions, normals (generated when omitted), UV set 0, vertex colors, tangents (generated when omitted), node matrix/TRS hierarchy flattened into part transforms, external and embedded buffers, and external or bufferView images. Base-color, normal, and emissive maps/factors, `OPAQUE` / `MASK` / `BLEND`, alpha cutoff, and glTF sampler wrap/filter settings are mapped to materials.
 
-This is not a PBR implementation: metallic-roughness and occlusion are not shaded. Sparse accessors, non-triangle primitive modes, texture coordinate sets other than `TEXCOORD_0`, animation/skin/morph data, and all glTF extensions are unsupported. Unsupported `extensionsUsed` or `extensionsRequired` entries raise an error naming the extension; sparse accessors likewise fail with a specific error instead of being misread. glTF's linear base-color/emissive factors are converted for the existing Blinn-Phong material color path. Base-color images use the color-texture path; normal maps use a linear texture path. Tangent handedness is adjusted for the V flip used by this renderer.
+glTF metallic-roughness factors and metallic-roughness/occlusion maps are imported into the direct-light PBR path. Sparse accessors, non-triangle primitive modes, texture coordinate sets other than `TEXCOORD_0`, animation/skin/morph data, and all glTF extensions are unsupported. Unsupported `extensionsUsed` or `extensionsRequired` entries raise an error naming the extension; sparse accessors likewise fail with a specific error instead of being misread. glTF's linear base-color/emissive factors are converted for the existing material color path. Base-color/emissive images use the color-texture path; normal, metallic-roughness, and occlusion maps use linear data texture paths. Tangent handedness is adjusted for the V flip used by this renderer.
 
 Run the interactive viewer with `./build/love demos/graphics3d-gltf-viewer`. It ships with the small Khronos Box GLB and accepts a relative model path as a launch argument; drag to orbit, use the wheel to zoom, and press Enter to type a replacement path. Automated loader fixtures and their individual license notices are under `testing/assets/gltf/`. The upstream sample collection currently contains `NormalTangentTest` rather than the requested `NormalTilingTest`.
 
+Run `./build/love demos/graphics3d-fog-pbr` for the interactive fog and material grid. Press Space to cycle between Blinn-Phong, linear fog, exponential fog, and direct-light metallic-roughness PBR. Launch with `--benchmark` to measure 600 frames per mode at 1080p and print renderer information and average/minimum/maximum frame times.
+
+The recorded 1080p benchmark on Mesa llvmpipe (OpenGL 4.5, 25 spheres, 600 frames per mode) reported:
+
+| Mode | Average (ms) | Minimum (ms) | Maximum (ms) |
+|---|---:|---:|---:|
+| Blinn-Phong baseline | 10.466 | 0.122 | 220.838 |
+| Linear fog | 10.180 | 6.173 | 15.254 |
+| Exponential fog | 10.020 | 6.073 | 15.329 |
+| Metallic-roughness PBR | 10.118 | 6.250 | 16.771 |
+
+These are whole-frame measurements, not GPU timer-query measurements. The low minima and high baseline maximum show substantial frame-time noise; differences between these modes are not a reliable isolated GPU cost estimate.
+
 ## Current scope and limitations
 
-The current module provides a camera, mesh/model resources, procedural shapes, OBJ/MTL and partial glTF/GLB loading, a Blinn-Phong shader with a fragment-function hook, up to eight lights, depth testing, sorted transparency, a transform scene graph, GPU instancing, automatic opaque batching, and distance-based mesh LOD. It does not currently provide fog, skyboxes, shadow mapping, metallic-roughness shading, skeletal animation, 3D physics, or an extensible render graph. These are not implied by the API in this guide.
+The current module provides a camera, mesh/model resources, procedural shapes, OBJ/MTL and partial glTF/GLB loading, Blinn-Phong and direct-light metallic-roughness material shading with a fragment-function hook, up to eight lights, depth testing, sorted transparency, linear/exponential distance fog, a transform scene graph, GPU instancing, automatic opaque batching, and distance-based mesh LOD. Cubemap/procedural skyboxes, shadow mapping, image-based lighting, skeletal animation, 3D physics, and an extensible render graph are not currently provided. These are not implied by the API in this guide.
 
 Backend, driver, and platform behavior should be validated on the actual shipping targets. A successful build or demo run on one machine does not certify performance, portability, or production readiness on other configurations. Keep 3D draw submission and resource creation measured for your own workload; `getStats()` exposes basic draw counts, not a full profiler.
 
