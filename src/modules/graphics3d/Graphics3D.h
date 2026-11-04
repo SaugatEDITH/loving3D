@@ -140,6 +140,14 @@ public:
 
 	void setAmbientColor(float r, float g, float b);
 	Vector3 getAmbientColor() const { return ambientColor; }
+	enum FogMode
+	{
+		FOG_NONE,
+		FOG_LINEAR,
+		FOG_EXPONENTIAL,
+	};
+	void setFog(FogMode mode, const Vector3 &color, float density, float start, float end);
+	int getFogMode() const { return fogMode; }
 
 	/**
 	 * 3D pass. While in3D, draws are queued and flushed once on end3D.
@@ -236,6 +244,12 @@ private:
 		const love::graphics::Shader::UniformInfo *normalTexture = nullptr;
 		const love::graphics::Shader::UniformInfo *specularTexture = nullptr;
 		const love::graphics::Shader::UniformInfo *emissiveTexture = nullptr;
+		const love::graphics::Shader::UniformInfo *fogParams = nullptr;
+		const love::graphics::Shader::UniformInfo *fogColor = nullptr;
+		const love::graphics::Shader::UniformInfo *materialPBR = nullptr;
+		const love::graphics::Shader::UniformInfo *occlusionParams = nullptr;
+		const love::graphics::Shader::UniformInfo *metallicRoughnessTexture = nullptr;
+		const love::graphics::Shader::UniformInfo *occlusionTexture = nullptr;
 	};
 
 	UniformInfos uniforms;
@@ -262,6 +276,11 @@ private:
 	StrongRef<Camera3D> camera;
 	std::vector<StrongRef<Light3D>> lights;
 	Vector3 ambientColor = Vector3(0.15f, 0.15f, 0.15f);
+	int fogMode = 0;
+	Vector3 fogColor = Vector3(0.5f, 0.6f, 0.7f);
+	float fogDensity = 0.01f;
+	float fogStart = 10.0f;
+	float fogEnd = 100.0f;
 
 	bool in3D = false;
 	bool autoBatching = true;
