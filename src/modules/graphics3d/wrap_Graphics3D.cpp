@@ -544,6 +544,67 @@ static int w_Material3D_getEmissiveTexture(lua_State *L)
 	return 1;
 }
 
+static int w_Material3D_setMetallicRoughnessTexture(lua_State *L)
+{
+	Material3D *t = luax_checkmaterial3d(L, 1);
+	t->setMetallicRoughnessTexture(lua_isnoneornil(L, 2)
+		? nullptr : luax_checktype<love::graphics::Texture>(L, 2));
+	return 0;
+}
+
+static int w_Material3D_setOcclusionTexture(lua_State *L)
+{
+	Material3D *t = luax_checkmaterial3d(L, 1);
+	t->setOcclusionTexture(lua_isnoneornil(L, 2)
+		? nullptr : luax_checktype<love::graphics::Texture>(L, 2));
+	return 0;
+}
+
+static int w_Material3D_setOcclusionStrength(lua_State *L)
+{
+	Material3D *t = luax_checkmaterial3d(L, 1);
+	luax_catchexcept(L, [&]() { t->setOcclusionStrength((float) luaL_checknumber(L, 2)); });
+	return 0;
+}
+
+static int w_Material3D_getOcclusionStrength(lua_State *L)
+{
+	lua_pushnumber(L, luax_checkmaterial3d(L, 1)->getOcclusionStrength());
+	return 1;
+}
+
+static int w_Material3D_setMetallic(lua_State *L)
+{
+	Material3D *t = luax_checkmaterial3d(L, 1);
+	luax_catchexcept(L, [&]() { t->setMetallic((float) luaL_checknumber(L, 2)); });
+	return 0;
+}
+
+static int w_Material3D_getMetallic(lua_State *L)
+{
+	lua_pushnumber(L, luax_checkmaterial3d(L, 1)->getMetallic());
+	return 1;
+}
+
+static int w_Material3D_setRoughness(lua_State *L)
+{
+	Material3D *t = luax_checkmaterial3d(L, 1);
+	luax_catchexcept(L, [&]() { t->setRoughness((float) luaL_checknumber(L, 2)); });
+	return 0;
+}
+
+static int w_Material3D_getRoughness(lua_State *L)
+{
+	lua_pushnumber(L, luax_checkmaterial3d(L, 1)->getRoughness());
+	return 1;
+}
+
+static int w_Material3D_setPBR(lua_State *L)
+{
+	luax_checkmaterial3d(L, 1)->setPBR(luax_checkboolean(L, 2));
+	return 0;
+}
+
 static int w_Material3D_setSpecularParams(lua_State *L)
 {
 	Material3D *t = luax_checkmaterial3d(L, 1);
@@ -708,6 +769,15 @@ static const luaL_Reg w_Material3D_functions[] =
 	{ "getSpecularTexture", w_Material3D_getSpecularTexture },
 	{ "setEmissiveTexture", w_Material3D_setEmissiveTexture },
 	{ "getEmissiveTexture", w_Material3D_getEmissiveTexture },
+	{ "setMetallicRoughnessTexture", w_Material3D_setMetallicRoughnessTexture },
+	{ "setOcclusionTexture", w_Material3D_setOcclusionTexture },
+	{ "setOcclusionStrength", w_Material3D_setOcclusionStrength },
+	{ "getOcclusionStrength", w_Material3D_getOcclusionStrength },
+	{ "setMetallic", w_Material3D_setMetallic },
+	{ "getMetallic", w_Material3D_getMetallic },
+	{ "setRoughness", w_Material3D_setRoughness },
+	{ "getRoughness", w_Material3D_getRoughness },
+	{ "setPBR", w_Material3D_setPBR },
 	{ "setSpecularParams", w_Material3D_setSpecularParams },
 	{ "getSpecularParams", w_Material3D_getSpecularParams },
 	{ "setEmissiveColor", w_Material3D_setEmissiveColor },
@@ -1733,6 +1803,30 @@ static int w_getAmbientColor(lua_State *L)
 	return 3;
 }
 
+static int w_setFog(lua_State *L)
+{
+	const char *modeName = luaL_checkstring(L, 1);
+	Graphics3D::FogMode mode;
+	if (strcmp(modeName, "none") == 0)
+		mode = Graphics3D::FOG_NONE;
+	else if (strcmp(modeName, "linear") == 0)
+		mode = Graphics3D::FOG_LINEAR;
+	else if (strcmp(modeName, "exp") == 0)
+		mode = Graphics3D::FOG_EXPONENTIAL;
+	else
+		return luaL_error(L, "Invalid 3D fog mode '%s' (expected none, linear, or exp).", modeName);
+
+	Vector3 color(
+		(float) luaL_optnumber(L, 2, 0.5),
+		(float) luaL_optnumber(L, 3, 0.6),
+		(float) luaL_optnumber(L, 4, 0.7));
+	float density = (float) luaL_optnumber(L, 5, 0.01);
+	float start = (float) luaL_optnumber(L, 6, 10.0);
+	float end = (float) luaL_optnumber(L, 7, 100.0);
+	luax_catchexcept(L, [&]() { instance()->setFog(mode, color, density, start, end); });
+	return 0;
+}
+
 /**
  * Matrix building for draw calls: position + optional euler angles +
  * optional scale.
@@ -2104,6 +2198,7 @@ static const luaL_Reg functions[] =
 	{ "clearLights", w_clearLights },
 	{ "setAmbientColor", w_setAmbientColor },
 	{ "getAmbientColor", w_getAmbientColor },
+	{ "setFog", w_setFog },
 	{ "begin3d", wbegin3D },
 	{ "end3d", wend3D },
 	{ "draw", w_draw },
