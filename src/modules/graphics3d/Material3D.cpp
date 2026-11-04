@@ -88,6 +88,37 @@ void Material3D::setEmissiveTexture(love::graphics::Texture *texture)
 	emissiveTexture.set(texture);
 }
 
+void Material3D::setMetallicRoughnessTexture(love::graphics::Texture *texture)
+{
+	metallicRoughnessTexture.set(texture);
+}
+
+void Material3D::setOcclusionTexture(love::graphics::Texture *texture)
+{
+	occlusionTexture.set(texture);
+}
+
+void Material3D::setOcclusionStrength(float value)
+{
+	if (!std::isfinite(value) || value < 0.0f || value > 1.0f)
+		throw love::Exception("Material occlusion strength must be finite and between 0 and 1.");
+	occlusionStrength = value;
+}
+
+void Material3D::setMetallic(float value)
+{
+	if (!std::isfinite(value) || value < 0.0f || value > 1.0f)
+		throw love::Exception("Material metallic value must be finite and between 0 and 1.");
+	metallic = value;
+}
+
+void Material3D::setRoughness(float value)
+{
+	if (!std::isfinite(value) || value < 0.04f || value > 1.0f)
+		throw love::Exception("Material roughness value must be finite and between 0.04 and 1.");
+	roughness = value;
+}
+
 void Material3D::setSpecularParams(float specularStrength, float shininessExponent)
 {
 	specGloss.r = specularStrength;
