@@ -17,9 +17,9 @@ local sin, cos, pi = math.sin, math.cos, math.pi
 local WIDTH, HEIGHT = 24, 16
 local PLAYER_Z = 0
 local LEVELS = {
-	{ name = "EASY", stars = 70, asteroids = 16, enemies = 4, bullets = 30 },
-	{ name = "ARCADE", stars = 150, asteroids = 38, enemies = 7, bullets = 55 },
-	{ name = "STRESS", stars = 420, asteroids = 100, enemies = 14, bullets = 100 },
+	{ name = "EASY", stars = 70, asteroids = 8, enemies = 4, bullets = 30 },
+	{ name = "ARCADE", stars = 150, asteroids = 12, enemies = 7, bullets = 55 },
+	{ name = "STRESS", stars = 420, asteroids = 24, enemies = 14, bullets = 100 },
 }
 
 local camera
@@ -88,6 +88,7 @@ local function buildScene()
 	camera:setFar(140)
 	camera:lookAt(0, 0, -7)
 	g3d.setCamera(camera)
+	g3d.setAutoBatching(false)
 
 	g3d.setAmbientColor(0.16, 0.19, 0.28)
 
@@ -135,7 +136,7 @@ local function buildScene()
 	materials.particle:setColor(1, 0.54, 0.15, 1)
 	materials.particle:setUnlit(true)
 
-	meshes.star = g3d.newCube()
+	meshes.star = g3d.newSphere(6, 8, 1)
 	meshes.star:setMaterial(materials.star)
 	meshes.rocks = {}
 	for i, material in ipairs(materials.rocks) do
@@ -170,13 +171,13 @@ local function populateBackground()
 	stars, asteroids = {}, {}
 
 	for i = 1, level.stars do
-		stars[i] = newEntity(random(-34, 34), random(-23, 23), random(-76, -9),
-			random(3, 10) / 100, random(3, 11))
+		stars[i] = newEntity(random(-34, 34), random(-23, 23), random(-76, -40),
+			random(7, 12) / 100, random(3, 11))
 	end
 
 	for i = 1, level.asteroids do
 		local rock = newEntity(random(-11, 11), random(-7, 7), random(-55, -14),
-			random(65, 155) / 100, random(7, 14))
+			random(45, 90) / 100, random(7, 14))
 		rock.variant = random(1, #meshes.rocks)
 		asteroids[i] = rock
 	end
@@ -259,8 +260,8 @@ end
 local function updateStars(dt)
 	for _, star in ipairs(stars) do
 		star.z = star.z + star.speed * dt
-		if star.z > 15 then
-			star.z = random(-82, -67)
+		if star.z > -38 then
+			star.z = random(-82, -68)
 			star.x = random(-34, 34)
 			star.y = random(-23, 23)
 		end
@@ -274,11 +275,11 @@ local function updateAsteroids(dt)
 		rock.phase = rock.phase + dt * 0.35
 		rock.x = rock.x + sin(rock.phase) * dt * 0.18
 
-		if rock.z > 12 then
+		if rock.z > 0 then
 			rock.z = random(-55, -36)
 			rock.x = random(-11, 11)
 			rock.y = random(-7, 7)
-			rock.scale = random(65, 155) / 100
+			rock.scale = random(45, 90) / 100
 			rock.variant = random(1, #meshes.rocks)
 		end
 
@@ -373,7 +374,7 @@ end
 
 local function drawWorld()
 	for _, star in ipairs(stars) do
-		draw(meshes.star, star.x, star.y, star.z, 0, star.rotation, 0,
+		draw(meshes.star, star.x, star.y, star.z, 0, 0, 0,
 			star.scale, star.scale, star.scale)
 	end
 

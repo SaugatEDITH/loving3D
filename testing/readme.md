@@ -43,27 +43,33 @@ See the **Todo** section for outstanding tasks if you want to contribute!
 ---
 
 ## Running Tests
-The testsuite aims to keep things as simple as possible, and just runs all the tests inside Löve to match how they'd be used by developers in-engine.
-To run the tests, download the repo and then run the main.lua as you would a Löve game, i.e:
+The suite runs inside the LOVING3D executable, so build the fork first. From
+the repository root, run all tests or select modules/methods:
 
-WINDOWS: `& 'c:\Program Files\LOVE\love.exe' PATH_TO_TESTING_FOLDER/main.lua --console`  
-MACOS: `/Applications/love.app/Contents/MacOS/love PATH_TO_TESTING_FOLDER/main.lua`  
-LINUX: `./love.AppImage PATH_TO_TESTING_FOLDER/main.lua`
+```sh
+./build/love testing --all
+./build/love testing --modules filesystem,audio
+./build/love testing --modules graphics3d
+./build/love testing --method filesystem read
+```
 
-By default all tests will be run for all modules.  
-If you want to specify a module/s you can use:  
-`--modules filesystem,audio`  
-If you want to specify only 1 specific method only you can use:  
-`--method filesystem write`
+Module names and comma-separated lists are accepted. Method names are
+case-sensitive and must match a test function in `testing/tests/`. Test
+results are printed as PASS, FAIL, or SKIP, with totals by method, module,
+and suite.
 
-All results will be printed in the console per method as PASS, FAIL, or SKIP with total assertions met on a module level and overall level.  
+The reports are written under `testing/output/`:
 
-When finished, the following files will be generated in the `/output` directory with a summary of the test results:
-- an `XML` file in the style of [JUnit XML](https://www.ibm.com/docs/en/developer-for-zos/14.1?topic=formats-junit-xml-format)
-- a `HTML` file that shows the report + any visual test results
-- a `Markdown` file you can use with [this github action](https://github.com/ellraiser/love-test-report)
-> An example of all types of output can be found in the `/examples`  
-> The visual results of any graphic tests can be found in `/output/actual`
+- `lovetest_all.xml` — JUnit-style XML.
+- `lovetest_all.html` — HTML summary and visual test results.
+- `lovetest_all.md` — Markdown summary.
+- `actual/` and `difference/` — captured graphics output and visual
+  comparisons.
+
+Selecting modules or a single method produces correspondingly named
+`lovetest_modules_...` or `lovetest_method_...` reports. See the [build and
+test guide](../docs/development.md) for additional commands and execution
+notes.
 
 ---
 

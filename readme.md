@@ -1,13 +1,31 @@
 # LOVING3D
 
-**LOVING3D is a LÖVE-based game engine distribution that adds native 3D rendering to LÖVE's Lua game framework.** It retains the familiar `love.*` programming model and existing 2D APIs, while adding the `love.graphics3d` module for 3D cameras, meshes, models, materials, lights, and rendering.
+**LOVING3D is a LÖVE-based game engine distribution that adds native 3D rendering to LÖVE's Lua game framework.** It retains the familiar `love.*` programming model and existing 2D APIs, while adding `love.graphics3d` for 3D cameras, meshes, models, materials, lights, scene nodes, and rendering.
 
-This repository is a modified LÖVE source tree, not an add-on package that can be dropped into an unmodified LÖVE installation. The 3D module is an evolving implementation; review the documented constraints and test the exact platforms and workloads you plan to ship.
+This repository is a modified LÖVE source tree, not an add-on package for an unmodified LÖVE installation. Build this fork and run your game with its `love` executable to use `love.graphics3d`. The 3D module is evolving; review the documented constraints and test the platforms and workloads you plan to ship.
+
+## Get started
+
+```sh
+# Linux: build using the repository's Docker toolchain (first run builds the image).
+./scripts/docker-demo.sh build
+
+# Run a demo, or replace the path with your own game's folder or .love archive.
+./build/love demos/graphics3d-cube
+
+# Run the full suite, or just the 3D tests.
+./build/love testing --all
+./build/love testing --modules graphics3d
+```
+
+For native build prerequisites, focused test commands, and generated reports, see the [build and test guide](docs/development.md). To start a new project, follow [making a game with LOVING3D](docs/creating-a-game.md).
 
 ## Documentation
 
 - **Using LÖVE's existing 2D APIs:** [Official LÖVE wiki and API reference](https://love2d.org/wiki/Main_Page). LOVING3D does not replace those APIs; 2D drawing, input, audio, filesystem, and other familiar LÖVE APIs remain part of the project.
 - **Using the added 3D API:** [LOVING3D 3D graphics guide](docs/graphics3d.md).
+- **Building, testing, and contributing:** [Build and test guide](docs/development.md).
+- **Creating a game:** [LOVING3D game starter guide](docs/creating-a-game.md).
 - **Project documentation index:** [docs/README.md](docs/README.md).
 - **License and third-party notices:** [docs/licensing.md](docs/licensing.md) and [license.txt](license.txt).
 
@@ -78,44 +96,42 @@ See the [3D guide](docs/graphics3d.md) for the full API, model import, render-pa
 ## Demos
 
 - [`demos/graphics3d-cube`](demos/graphics3d-cube): minimal 3D camera, lighting, mesh, and 2D overlay example.
+- [`demos/graphics3d-canvas`](demos/graphics3d-canvas): 3D rendering to a readable Canvas, composited with 2D.
+- [`demos/graphics3d-gltf-viewer`](demos/graphics3d-gltf-viewer): interactive glTF 2.0 / GLB model viewer.
+- [`demos/graphics3d-resize`](demos/graphics3d-resize): resize, fullscreen, bounds, and normal visualization.
 - [`demos/graphics3d-shooter`](demos/graphics3d-shooter): interactive procedural space shooter and 3D load demo, including OBJ/MTL ship import.
-- [`demos/rubiks3d`](demos/rubiks3d): 3D shapes and rendering example.
+- [`demos/rubiks3d`](demos/rubiks3d): interactive 3D Rubik's Cube.
 
-Run a demo with the built executable, for example:
+### Demo recordings
 
-```sh
-./build/love demos/graphics3d-shooter
-```
+These looping APNG excerpts use the first half of each recording, at the original resolution and frame timing. The Rubik's Cube recording uses a reduced-color palette to keep its download size manageable.
+
+| Rubik's Cube | Starfall |
+| --- | --- |
+| <img src="docs/assets/demos/rubiks-cube.apng" width="420" alt="Interactive 3D Rubik's Cube"> | <img src="docs/assets/demos/starfall.apng" width="420" alt="Starfall 3D space shooter"> |
+| 3D Cube | Canvas |
+| --- | --- |
+| <img src="docs/assets/demos/3d-cube.apng" width="420" alt="Rotating 3D cube demo"> | <img src="docs/assets/demos/canvas.apng" width="420" alt="3D Canvas compositing demo"> |
+
+| glTF viewer | Resize and fullscreen |
+| --- | --- |
+| <img src="docs/assets/demos/gltf-viewer.apng" width="420" alt="Interactive glTF model viewer"> | <img src="docs/assets/demos/resize-fullscreen.apng" width="420" alt="3D resize and fullscreen demo"> |
+
 
 ## Building
 
-Build requirements depend on the target platform and the dependencies configured for this LÖVE source tree. With the required CMake toolchain and development libraries installed:
-
-```sh
-cmake -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo
-cmake --build build -j"$(nproc)"
-```
-
-On Linux, this repository also includes a Docker build environment:
-
-```sh
-docker build -t loving3d-build -f docker/Dockerfile .
-./scripts/docker-demo.sh build
-```
-
-The Docker script bind-mounts the working tree and writes build output to `build/`. Display and GPU availability inside containers depends on the host setup. The included container configuration is a build/test convenience, not a platform support guarantee.
+See the [build and test guide](docs/development.md) for native CMake builds, the Docker build environment, running demos, and tests.
 
 ## 3D implementation overview
 
 - Right-handed world coordinates, +Y up, camera forward along -Z by default.
 - Perspective and orthographic cameras.
-- Indexed meshes, built-in procedural primitives, and a Wavefront OBJ/MTL text importer.
-- Per-mesh/model materials with diffuse, normal, specular, and emissive texture slots.
-- Blinn-Phong lighting with directional, point, and spot lights (up to eight active lights).
-- Depth-tested rendering, opaque-first submission, and back-to-front sorting for transparent draws.
-- `love.graphics` remains available for 2D rendering and UI.
+- Indexed meshes, procedural primitives, OBJ/MTL, and partial glTF 2.0 / GLB loading.
+- Blinn-Phong and direct-light metallic-roughness materials; directional, point, and spot lights.
+- Depth-tested opaque/transparent passes, fog, Canvas rendering, a transform scene graph, GPU instancing, automatic opaque batching, and distance-based mesh LOD.
+- Existing `love.graphics` APIs remain available for 2D drawing and UI.
 
-The current renderer is a useful foundation, not a claim of feature parity with mature 3D engines. It does not currently document a full scene graph, skeletal animation, a physics integration, glTF import, shadow mapping, or a render graph. Consult [known constraints](docs/graphics3d.md#current-scope-and-limitations) before choosing it for a production project.
+LOVING3D is an evolving 3D foundation, not a claim of feature parity with mature 3D engines. Skeletal animation, 3D physics, shadow mapping, image-based lighting, and an extensible render graph are not currently provided. Check the [feature status and limitations](docs/graphics3d.md#feature-status) and validate the exact backend and hardware you plan to ship on.
 
 ## Contributing and support
 

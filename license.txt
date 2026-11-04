@@ -1,6 +1,13 @@
 Licensing information
 =====================
 
+LOVING3D modifications and additions
+Copyright (c) 2026 Saugat Pokharel
+
+This notice applies only to original modifications and additions made for
+LOVING3D. It does not replace or alter the licenses or copyright notices for
+LÖVE or any third-party components listed below.
+
 This distribution contains code from the following projects (full license text below):
 
  - LOVE

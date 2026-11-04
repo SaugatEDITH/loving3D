@@ -7,6 +7,7 @@
 /configure-modules-post.ac
 /configure-modules-pre.ac
 /configure.ac
+/build/
 
 /extra/reshax/Release/
 /extra/reshax/Debug/
