@@ -83,6 +83,18 @@ public:
 
 	void setEmissiveTexture(love::graphics::Texture *texture);
 	love::graphics::Texture *getEmissiveTexture() const { return emissiveTexture.get(); }
+	void setMetallicRoughnessTexture(love::graphics::Texture *texture);
+	love::graphics::Texture *getMetallicRoughnessTexture() const { return metallicRoughnessTexture.get(); }
+	void setOcclusionTexture(love::graphics::Texture *texture);
+	love::graphics::Texture *getOcclusionTexture() const { return occlusionTexture.get(); }
+	void setOcclusionStrength(float value);
+	float getOcclusionStrength() const { return occlusionStrength; }
+	void setMetallic(float value);
+	float getMetallic() const { return metallic; }
+	void setRoughness(float value);
+	float getRoughness() const { return roughness; }
+	void setPBR(bool enabled) { pbr = enabled; }
+	bool isPBR() const { return pbr; }
 	void setShader(love::graphics::Shader *shader) { customShader.set(shader); }
 	love::graphics::Shader *getShader() const { return customShader.get(); }
 	void setInstancedShader(love::graphics::Shader *shader) { instancedCustomShader.set(shader); }
@@ -150,6 +162,8 @@ private:
 	StrongRef<love::graphics::Texture> normalTexture;
 	StrongRef<love::graphics::Texture> specularTexture;
 	StrongRef<love::graphics::Texture> emissiveTexture;
+	StrongRef<love::graphics::Texture> metallicRoughnessTexture;
+	StrongRef<love::graphics::Texture> occlusionTexture;
 	StrongRef<love::graphics::Shader> customShader;
 	StrongRef<love::graphics::Shader> instancedCustomShader;
 	std::string fragmentFunction;
@@ -159,6 +173,10 @@ private:
 	AlphaMode alphaMode = ALPHA_AUTO;
 	float alphaCutoff = 0.5f;
 	bool unlit = false;
+	bool pbr = false;
+	float metallic = 0.0f;
+	float roughness = 0.5f;
+	float occlusionStrength = 1.0f;
 	love::graphics::CullMode cullMode = love::graphics::CULL_BACK;
 
 }; // Material3D
